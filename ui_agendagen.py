@@ -1,11 +1,12 @@
 import streamlit as st
 import agendautil as tsd
 
-ny_summit_metadata = 'ny_summit_session_metadata_txt'
+ny_summit_metadata = 'ny_summit_session_metadata'
 
 def search_function(query):
     # Calling the RAG Method
-    return tsd.generateAgendaItems(query, ny_summit_metadata)
+    rephrasedQuery = tsd.rephraseQuestions(query)
+    return tsd.generateAgendaItems(rephrasedQuery, ny_summit_metadata)
 
 st.title("NY Summit Agenda Generator")
 
