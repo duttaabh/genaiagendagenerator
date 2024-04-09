@@ -101,7 +101,7 @@ def getMemory():  # create memory for this chat session
 #Generating Keywords from questions
 def rephraseQuestions(input_text):
     nysummit_date = '2023-07-26'
-    prompt_template = """Rephrase the {question} as if asking to generate an agenda between a start and end time (if available) in a single sentence. Convert all start or end times to HH:MM:SS format(if available)
+    prompt_template = """If the {question} does not start with a verb, rephrase the {question} to generate an agenda in a single sentence. Modify the start and end times with "between/and" cluase if mentioned like 8am-3pm, 9am-3pm, 09:00:00-15:00:00 etc. All start or end times converted to HH:MM:SS format. Do not generate any agenda or multi-line messages in the response or add any start or end time if not present in the {question}.
     
             Keywords:"""
 
@@ -110,17 +110,11 @@ def rephraseQuestions(input_text):
     llm_chain = LLMChain(llm=getLLM(), prompt=prompt)
 
     response = llm_chain.invoke(input_text, return_only_outputs=False)
-
+    # print(response['text'])
     arrAnswers = response['text'].split('\n')
-    if len(arrAnswers) == 1:
-        keywords = arrAnswers[0]
-    elif len(arrAnswers) == 2:
-        keywords = arrAnswers[1]
-    elif len(arrAnswers) == 3:
-        keywords = arrAnswers[2]
-
+    if len(arrAnswers) > 0:
+        keywords = arrAnswers[len(arrAnswers) -1]
     return keywords
-
 
 #Generating the final agenda using RAG
 def generateAgendaItems(input_text, index_name):
@@ -147,7 +141,7 @@ def generateAgendaItems(input_text, index_name):
         connection_class=RequestsHttpConnection
     )
     # Prompt Massaging
-    prompt_template = """{question} with awsSessionID based on the following context information. Do not change the sessionStartTime and sessionEndTime in the generated agenda. Your goal is to generate a final agenda based on the session start time, end time and duration that has no overlapping or conflicting sessions, while strictly adhering to the session Start Time and session End Time provided without adjusting them to fit the agenda based on the following context.
+    prompt_template = """{question} with awsSessionID based on the following context information. Do not change the sessionStartTime and sessionEndTime in the generated agenda. Your goal is to generate a final agenda based on the session start time, end time and duration that has no overlapping or conflicting sessions, while strictly adhering to the session Start Time and session End Time provided without adjusting them to fit the agenda based on the following {context}. If there are multiple sessions that start or end around the same time within 15-30 mins and of similar duration, choose the one that starts first. 
 
             {context}
 
@@ -206,8 +200,9 @@ def factCheckRag(input_text, index_name):
 if __name__ == '__main__':
     question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
-    # question = 'Build me an agenda based on the latest industry trends'
+    # question = 'Build a 5 hour agenda. Please include 1 hands-on workshop for Compute'
     rephrasedquestion = rephraseQuestions(question)
     print(rephrasedquestion)
     rag_response = generateAgendaItems(rephrasedquestion, 'ny_summit_session_metadata')
     print(rag_response['result'])
+    # print(factCheckRag(rag_response['result'], 'ny_summit_session_metadata')['result'])
