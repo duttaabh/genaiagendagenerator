@@ -111,7 +111,13 @@ def rephraseQuestions(input_text):
 
     response = llm_chain.invoke(input_text, return_only_outputs=False)
 
-    keywords = response['text'].split('\n')[0]
+    arrAnswers = response['text'].split('\n')
+    if len(arrAnswers) == 1:
+        keywords = arrAnswers[0]
+    elif len(arrAnswers) == 2:
+        keywords = arrAnswers[1]
+    elif len(arrAnswers) == 3:
+        keywords = arrAnswers[2]
 
     return keywords
 
@@ -200,6 +206,7 @@ def factCheckRag(input_text, index_name):
 if __name__ == '__main__':
     question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
+    # question = 'Build me an agenda based on the latest industry trends'
     rephrasedquestion = rephraseQuestions(question)
     print(rephrasedquestion)
     rag_response = generateAgendaItems(rephrasedquestion, 'ny_summit_session_metadata')
