@@ -5,8 +5,8 @@ ny_summit_metadata = 'ny_summit_session_metadata'
 
 def search_function(query):
     # Calling the RAG Method
-    rephrasedQuery = tsd.rephraseQuestions(query)
-    return tsd.generateAgendaItems(rephrasedQuery, ny_summit_metadata)
+    # rephrasedQuery = tsd.rephraseQuestions(query)
+    return tsd.overlapCheck(tsd.generateAgendaItems(query, ny_summit_metadata), query)
 
 st.title("NY Summit Agenda Generator")
 
