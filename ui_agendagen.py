@@ -16,6 +16,6 @@ if query:
     with st.spinner("Generating..."):
         results = search_function(query)
     st.success("Your Agenda has been sucessfully generated!")
-    messages = str(results['result']).split('\n')
+    messages = str(results).split('\n')
     for message in messages:
         st.write(message)
