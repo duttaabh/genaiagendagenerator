@@ -101,7 +101,7 @@ def getMemory():  # create memory for this chat session
 #Generating Keywords from questions
 def rephraseQuestions(input_text):
     nysummit_date = '2023-07-26'
-    prompt_template = """If the {question} does not start with a verb, rephrase the {question} to generate an agenda in a single sentence. Modify the start and end times with "between/and" cluase if mentioned like 8am-3pm, 9am-3pm, 09:00:00-15:00:00 etc. All start or end times converted to HH:MM:SS format. Do not generate any agenda or multi-line messages in the response or add any start or end time if not present in the {question}.
+    prompt_template = """rewrite the '{question}' by removing any time field, but do not generate any timeslots or agenda in the response.
     
             Keywords:"""
 
@@ -110,7 +110,7 @@ def rephraseQuestions(input_text):
     llm_chain = LLMChain(llm=getLLM(), prompt=prompt)
 
     response = llm_chain.invoke(input_text, return_only_outputs=False)
-    # print(response['text'])
+    # print(response)
     arrAnswers = response['text'].split('\n')
     if len(arrAnswers) > 0:
         keywords = arrAnswers[len(arrAnswers) -1]
@@ -128,7 +128,7 @@ def generateAgendaItems(input_text, index_name):
             verify_certs=True,
             engine="faiss",
             connection_class=RequestsHttpConnection
-        ).as_retriever(search_type="mmr", search_kwargs={'k': 10, 'lambda_mult': 0.25})
+        ).as_retriever(search_type="mmr", search_kwargs={'k': 5})
     search = OpenSearchVectorSearch(
         opensearch_url=opensearch_endpoint,
         index_name=index_name,
@@ -141,14 +141,10 @@ def generateAgendaItems(input_text, index_name):
         connection_class=RequestsHttpConnection
     )
     # Prompt Massaging
-    prompt_template = """{question} with awsSessionID based on the following context information. Do not change the sessionStartTime and sessionEndTime in the generated agenda. Your goal is to generate a final agenda based on the session start time, end time and duration that has no overlapping or conflicting sessions, while strictly adhering to the session Start Time and session End Time provided without adjusting them to fit the agenda based on the following {context}. If there are multiple sessions that start or end around the same time within 15-30 mins and of similar duration, choose the one that starts first. 
-
-            {context}
-
+    prompt_template = """Generate an agenda based on the \"{question}\" including awsSessionID, sessionName, sessionStartTime in 'sessionDate am/pm' format, sessionEndTime in 'sessionDate am/pm' format and sessionDuration in hours in a proper time sequence without any time manipulation, overlap or conflict based on the {context}.
+            
             Failure Instructions:
-            If you are unable to create an agenda that meets the requirements of having no overlapping or conflicting sessions and without changing the session Start and End Times, the task will be considered a failure. In the case of a failure, you should provide a detailed explanation outlining the reasons why the agenda could not be successfully generated within the given constraints.
-
-            Question: {question}
+            If you are unable to create an agenda, the task will be considered a failure. Properly explain the cause of failure
 
             Answer:"""
 
@@ -158,51 +154,40 @@ def generateAgendaItems(input_text, index_name):
                                      chain_type="stuff",
                                      retriever=retriever,
                                      return_source_documents=True,
-                                     chain_type_kwargs={"prompt": PROMPT, "verbose": True},
-                                     verbose=True)
+                                     chain_type_kwargs={"prompt": PROMPT, "verbose": False},
+                                     verbose=False)
 
     chat_response = qa.invoke(input_text, return_only_outputs=False)
-    return chat_response
+    return chat_response['result']
 
-def factCheckRag(input_text, index_name):
-    retriever = OpenSearchVectorSearch(
-            opensearch_url=opensearch_endpoint,
-            index_name=index_name,
-            embedding_function=embeddings,
-            http_auth=awsauth,
-            timeout=300,
-            use_ssl=True,
-            verify_certs=True,
-            engine="faiss",
-            connection_class=RequestsHttpConnection
-        ).as_retriever(search_type="mmr", search_kwargs={'k': 10, 'lambda_mult': 0.25})
-
+def overlapCheck(input_text, context):
     # Prompt Massaging
-    prompt_template = """You are tasked to check accuracy of sessionStart and sessionEndTime in the generated "{question}" using the following context. Please provide detailed explanation if any of the details are inaccurate.:
-
-            {context}
-
-            Question: {question}   
-
+    prompt_template = """Generate the final agenda with date and time sequence without any time manipulation. 
+                         Include awsSessionId, session name, session start date time in 'sessionDate am/pm' format, session end date time in 'sessionDate am/pm' format and session duration in the response. If any date time sequence is messed, correct it without changing the actual data.
+                         Remove any conflicting or overlapping sessions based on their start or end time without manipulating the session start or end times in the {input_text}. 
+                         Remove any session which is longer than three hours. If more than one sessions have overlapping or same start time, keep the one with longest duration and remove the others. 
+                         If more than one sessions have overlapping or same end time, keep the one with longest duration and remove the others from the agenda. 
+                         Remove any items that falls outside the context \"""" + context + "\""""". No need to provide any explanation.
+            
             Answer:"""
-    PROMPT = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
-    qa = RetrievalQA.from_chain_type(llm=getLLM(),
-                                     chain_type="stuff",
-                                     retriever=retriever,
-                                     return_source_documents=True,
-                                     chain_type_kwargs={"prompt": PROMPT, "verbose": True},
-                                     verbose=True)
+    prompt = PromptTemplate.from_template(prompt_template)
 
-    chat_response = qa.invoke(input_text, return_only_outputs=False)
-    return chat_response
+    llm_chain = LLMChain(llm=getLLM(), prompt=prompt, verbose=False)
+
+    response = llm_chain.invoke(input_text, return_only_outputs=False)
+
+    return response['text']
 
 if __name__ == '__main__':
     question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
-    # question = 'Build a 5 hour agenda. Please include 1 hands-on workshop for Compute'
-    rephrasedquestion = rephraseQuestions(question)
-    print(rephrasedquestion)
-    rag_response = generateAgendaItems(rephrasedquestion, 'ny_summit_session_metadata')
-    print(rag_response['result'])
-    # print(factCheckRag(rag_response['result'], 'ny_summit_session_metadata')['result'])
+    # question = 'Recommend an agenda for security'
+    # rephrasedquestion = rephraseQuestions(question)
+    # print(rephrasedquestion)
+    rag_response = generateAgendaItems(question, 'ny_summit_session_metadata')
+    print('********************************************************************')
+    print(rag_response)
+    print('********************************************************************')
+    print(overlapCheck(rag_response, question))
+    print('********************************************************************')
