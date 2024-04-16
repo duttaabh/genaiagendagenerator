@@ -1,4 +1,4 @@
-#How to run this application in local PC#
+**How to run this application in local PC**
 
 1. Install Python version <= 3.10 in your PC/workspace.
 2. Install a Git Client in PC/workspace.
