@@ -1,6 +1,7 @@
 boto3
 streamlit
 streamlit_chat
+streamlit-javascript
 langchain
 amazon-textract-response-parser
 amazon-textract-prettyprinter
@@ -8,3 +9,4 @@ amazon-textract-helper
 faiss-cpu
 opensearch-py
 requests_aws4auth
+reportlab
