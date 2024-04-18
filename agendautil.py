@@ -1,4 +1,5 @@
 import csv
+import datetime
 import json
 import os
 
@@ -97,6 +98,22 @@ def getMemory():  # create memory for this chat session
                                             return_messages=True)  # Maintains a history of previous messages
     return memory
 
+# Fucntion to generate the social cues
+def findSocialActivities(input_text):
+    prompt_template = """
+                             Find the social activities in this sentence - {input_text} and put then in a comma separated string without any additional explanation
+
+                    Answer:"""
+    prompt = PromptTemplate.from_template(prompt_template)
+
+    llm_chain = LLMChain(llm=getLLM(), prompt=prompt, verbose=False)
+
+    response = llm_chain.invoke(input_text, return_only_outputs=False)
+    # print(response)
+
+    response = response['text']
+
+    return response
 
 # Fucntion to generate the RAW agenda using LLM
 def generateAgendaItems(input_text, index_name, timezone):
@@ -111,25 +128,18 @@ def generateAgendaItems(input_text, index_name, timezone):
             engine="faiss",
             connection_class=RequestsHttpConnection
         ).as_retriever()
-        # .as_retriever(search_type="mmr", search_kwargs={'k': 5})
-    search = OpenSearchVectorSearch(
-        opensearch_url=opensearch_endpoint,
-        index_name=index_name,
-        embedding_function=embeddings,
-        http_auth=awsauth,
-        timeout=300,
-        use_ssl=True,
-        verify_certs=True,
-        engine="faiss",
-        connection_class=RequestsHttpConnection
-    )
+
+    keywords = findSocialActivities(input_text)
+    # print(keywords)
     # Prompt Massaging
-    prompt_template = """Generate an agenda based on the \"{question}\" including awsSessionID, sessionName, sessionStartTime in 'sessionDate am/pm' format, sessionEndTime in 'sessionDate am/pm' format and sessionDuration in minutes in a proper time sequence without any time manipulation, overlap or conflict based on the {context}.
-            if awsSessionID is not found for a session, please generate awsSessionID, sessionName, sessionDate in DD-MMM-YYYY format, sessionStartTime in 'am/pm TIMEZONE' format, sessionEndTime in 'am/pm TIMEZONE' format and sessionDuration in minutes based on the context, otherwise use existing values.
-            if Lunch is mentioned in the {question}, use Lunch as awsSessionID, Lunch as sessionName and set the session Start and End Time between 12pm and 1 pm if possible, otherwise do not include Lunch in the agenda.
-            convert the sessionStartTime and sessionEndTime based on local timezone as """ + timezone + """
+    prompt_template = """
+            Please generate an agenda in jsonArray format based on the \"{question}\" and {context} only, strictly adhereing to the start and end times and without trying to generate anything on your own.
+            Include Lunch in the agenda if mentioned in the {question}.
+            Include additional activities based on """ + keywords + """ related to the {question}.
+            Please include the following attributes awsSessionID, sessionName, sessionDate, sessionStartTime, sessionEndTime and sessionDuration in mins for every session.
+            Convert session start and end times from America/New York to """ + timezone + """\
             Failure Instructions:
-            If you are unable to create an agenda, the task will be considered a failure. Properly explain the cause of failure
+            If you are unable to create an agenda, the task will be considered a failure. No need to explain the cause of failure.
 
             Answer:"""
 
@@ -142,23 +152,23 @@ def generateAgendaItems(input_text, index_name, timezone):
                                      chain_type_kwargs={"prompt": PROMPT, "verbose": False},
                                      verbose=False)
 
-    chat_response = qa.invoke(input_text, return_only_outputs=False)
-    return chat_response['result']
+    rag_response = qa.invoke(input_text, return_only_outputs=False)
+    # print(rag_response['result'])
+    agenda_response = sorted(validateJsonResponse(rag_response['result']), key=lambda x: datetime.datetime.strptime(x['sessionStartTime'], '%Y-%m-%d %H:%M:%S'))
+
+    return json.dumps(agenda_response)
 
 # Function for checking overlaps, formatting the data for final and performing final validations
-def overlapCheckJson(input_text, context, timezone):
-    prompt_template = f"""
-                         convert all the times to {timezone} timezone
-                         Sort the {input_text} by sessionStartTime in ascending order.
-                         Remove any overlapping sessions from the {input_text}.
-                         if awsSessionID is not found for a session, please generate awsSessionID, sessionName, sessionDate in DD-MMM-YYYY format, sessionStartTime in 'am/pm timezone' format, sessionEndTime in 'am/pm timezone' with {timezone} format and sessionDuration in minutes based on the context, otherwise use existing values.
-                         if Lunch is mentioned in the """ + context + """, use Lunch as awsSessionID, Lunch as sessionName and set the session Start and End Time between 12pm and 1 pm if possible, otherwise do not include Lunch in the agenda.
-                         Generate the final agenda in json array format without any time manipulation. Do to make up an agenda that does not match {input_text}.
-                         Must include the json attributes: awsSessionID, sessionName, sessionDate in DD-MMM-YYYY format, sessionStartTime in 'am/pm timezone' format, sessionEndTime in 'am/pm timezone' format and sessionDuration in minutes in the response.
+def overlapCheckJson(input_text, timezone):
+    # print("oss_message: ", input_text)
+    prompt_template = """
+                         Please do not create any agenda which does not match {input_text}
+                         Remove any overlapping or conflicting activities in the {input_text}
                          Remove any conflicting or overlapping sessions based on their start or end time without manipulating the session start or end times in the {input_text}.
-                         Remove any session which is longer than three hours. If more than one sessions have overlapping or same start time, keep the one with that matches the most with the """ + context + \
-                      """If more than one sessions have overlapping or same end time, keep the one with that matches the most with the """ + context + \
-                      """No need to provide any explanation.
+                         Remove any session which is longer than three hours. If more than one sessions have overlapping or same start time, keep the most relevant one.
+                         If more than one sessions have overlapping or same end time, keep the most relevant one.
+                         Change the sessionDate to DD-MMM-YYYY format and session times to 'AM/PM Timezone' format
+                         No need to provide any explanation.
 
                 Answer:"""
     prompt = PromptTemplate.from_template(prompt_template)
@@ -168,14 +178,15 @@ def overlapCheckJson(input_text, context, timezone):
     response = llm_chain.invoke(input_text, return_only_outputs=False)
     # print(response)
 
-    response = validateJsonResponse(response['text'])
+    response = response['text']
 
     return response
 
 # Utility functions to print the data in a pre-defined format
 def validateJsonResponse(response):
-    # print('response: ' + str(response))
-    try:
+    # print('response: ', response)
+    if len(response) > 0:
+        # try:
         start_index = response.find('[')
         end_index = response.rindex(']') + 1
         # Extract the JSON message as a string
@@ -183,31 +194,20 @@ def validateJsonResponse(response):
         # print("message: ", json_message)
         # Parse the JSON message
         data = json.loads(json_message)
-        data = formatJsonMessage(data)
-    except Exception as error:
-        # print("No valid JSON message found.")
-        print(error)
-        data = response
+        # print("data: ", data)
+        # data = formatJsonMessage(data)
     return data
 
 def formatJsonMessage(jsonmessage):
-    final_agenda = "\nPlease find below the recommended agenda based on your requirements\n========================================================================================"
-    if 'agenda' in jsonmessage:
-        for session in jsonmessage['agenda']:
-            if 'awsSessionID' not in session:
-                sessionID = 'NA'
-            else:
-                sessionID = session['awsSessionID']
-            if 'sessionName' in session:
-                final_agenda = final_agenda + '\n' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n========================================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nSession Duration: {session['sessionDuration']}\n========================================================================================"
-    else:
-        for session in jsonmessage:
-            if 'awsSessionID' not in session:
-                sessionID = 'NA'
-            else:
-                sessionID = session['awsSessionID']
-            if 'sessionName' in session:
-                final_agenda = final_agenda + '\n' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n========================================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nSession Duration: {session['sessionDuration']}\n========================================================================================"
+    # print(jsonmessage)
+    final_agenda = "\nPlease find below the recommended agenda based on your requirements\n=============================================================================="
+    for session in jsonmessage:
+        if 'awsSessionID' not in session:
+            sessionID = 'NA'
+        else:
+            sessionID = session['awsSessionID']
+        if 'sessionName' in session:
+            final_agenda = final_agenda + '\n' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n==============================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nSession Duration: {session['sessionDuration']}\n=============================================================================="
     return final_agenda
 
 # Function to get current server date time
@@ -218,14 +218,15 @@ def currentDateTime():
     return currentTime
 
 if __name__ == '__main__':
-    # question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
+    question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
-    question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
+    # question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
     # rephrasedquestion = rephraseQuestions(question)
     # print(rephrasedquestion)
-    rag_response = generateAgendaItems(question, 'ny_summit_session_metadata')
+    timezone = 'America/Austin'
+    rag_response = generateAgendaItems(question, 'ny_summit_session_metadata', timezone)
     print('********************************************************************')
-    print(rag_response)
+    print(formatJsonMessage(validateJsonResponse(overlapCheckJson(rag_response, timezone))))
     print('********************************************************************')
-    print(overlapCheckJson(rag_response, question))
-    print('********************************************************************')
+    # print(overlapCheckJson(rag_response, question, 'America/Austin'))
+    # print('********************************************************************')
