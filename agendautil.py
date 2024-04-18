@@ -187,27 +187,33 @@ def validateJsonResponse(response):
     # print('response: ', response)
     if len(response) > 0:
         # try:
-        start_index = response.find('[')
-        end_index = response.rindex(']') + 1
-        # Extract the JSON message as a string
-        json_message = response[start_index:end_index]
-        # print("message: ", json_message)
-        # Parse the JSON message
-        data = json.loads(json_message)
-        # print("data: ", data)
-        # data = formatJsonMessage(data)
+        if response.index('[')>-1 and response.index(']')>-1:
+            start_index = response.find('[')
+            end_index = response.rindex(']') + 1
+            # Extract the JSON message as a string
+            json_message = response[start_index:end_index]
+            # print("message: ", json_message)
+            # Parse the JSON message
+            data = json.loads(json_message)
+            # print("data: ", data)
+            # data = formatJsonMessage(data)
+        else:
+            data = ''
     return data
 
 def formatJsonMessage(jsonmessage):
     # print(jsonmessage)
-    final_agenda = "\nPlease find below the recommended agenda based on your requirements\n=============================================================================="
-    for session in jsonmessage:
-        if 'awsSessionID' not in session:
-            sessionID = 'NA'
-        else:
-            sessionID = session['awsSessionID']
-        if 'sessionName' in session:
-            final_agenda = final_agenda + '\n' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n==============================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nSession Duration: {session['sessionDuration']}\n=============================================================================="
+    if len(jsonmessage) > 0:
+        final_agenda = "\nPlease find below the recommended agenda based on your requirements\n=============================================================================="
+        for session in jsonmessage:
+            if 'awsSessionID' not in session:
+                sessionID = 'NA'
+            else:
+                sessionID = session['awsSessionID']
+            if 'sessionName' in session:
+                final_agenda = final_agenda + '\n' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n==============================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nSession Duration: {session['sessionDuration']}\n=============================================================================="
+    else:
+        final_agenda = ''
     return final_agenda
 
 # Function to get current server date time
