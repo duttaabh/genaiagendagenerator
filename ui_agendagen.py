@@ -20,8 +20,7 @@ timezone = st_javascript("""await (async () => {
 # Function to generate the agenda from the UI
 def generateAgenda(query):
     # Calling the RAG Method
-    # rephrasedQuery = tsd.rephraseQuestions(query)
-    return tsd.overlapCheckJson(tsd.generateAgendaItems(query, ny_summit_metadata, timezone), query, timezone)
+    return tsd.formatJsonMessage(tsd.validateJsonResponse(tsd.overlapCheckJson(tsd.generateAgendaItems(query, ny_summit_metadata, timezone), timezone)))
 
 # Function to save the generated agenda ina downloadable PDF format
 def save_to_pdf(text, current_time):
