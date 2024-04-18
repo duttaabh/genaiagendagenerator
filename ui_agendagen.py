@@ -39,16 +39,22 @@ query = st.text_input("Please tell us your session requirements")
 
 if query:
     with st.spinner("Generating..."):
-        results = generateAgenda(query)
-        current_time = tsd.currentDateTime()
-        save_to_pdf(str(results), current_time)
-        with open('output_'+current_time+'.pdf', "rb") as pdf_file:
-            pdf = pdf_file.read()
-        os.remove('output_' + current_time + '.pdf')
-        st.download_button('Save the agenda',
-                           data=pdf,
-                           file_name='agenda_'+tsd.currentDateTime()+'.pdf'
-                          )
-        messages = str(results).split('\n')
-        for message in messages:
-            st.write(message)
+        try:
+            results = generateAgenda(query)
+            if len(results) > 0:
+                current_time = tsd.currentDateTime()
+                save_to_pdf(str(results), current_time)
+                with open('output_'+current_time+'.pdf', "rb") as pdf_file:
+                    pdf = pdf_file.read()
+                os.remove('output_' + current_time + '.pdf')
+                st.download_button('Save the agenda',
+                                   data=pdf,
+                                   file_name='agenda_'+tsd.currentDateTime()+'.pdf'
+                                  )
+                messages = str(results).split('\n')
+                for message in messages:
+                    st.write(message)
+            else:
+                st.error("Sorry, unable to generate the agenda based on your requirements. Please try again later.")
+        except:
+            st.error("Sorry, unable to generate the agenda due to some system errors. Please try again later.")
