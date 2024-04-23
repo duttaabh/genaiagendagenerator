@@ -189,7 +189,7 @@ def overlapCheckJson(input_text, timezone):
                          
                          If more than one sessions have overlapping or same end time, keep the most relevant one.
                          
-                         Change the sessionDate to DD-MMM-YYYY format and session times to 'AM/PM Timezone' format
+                         Change the sessionDate to DD-MMM-YYYY format and session times to 'AM/PM ' """ + getCustomerTimezone(timezone) + """ format
                          
                          No need to provide any explanation.
 
@@ -199,6 +199,25 @@ def overlapCheckJson(input_text, timezone):
     llm_chain = LLMChain(llm=getLLM(), prompt=prompt, verbose=False)
 
     response = llm_chain.invoke(input_text, return_only_outputs=False)
+    # print(response)
+
+    response = response['text']
+
+    return response
+
+
+# Function for checking overlaps, formatting the data for final and performing final validations
+def getCustomerTimezone(timezone):
+    # print("oss_message: ", input_text)
+    prompt_template = """
+                         Please find the timezone based on {timezone} in a single word like EDT, CDT, etc.
+
+                Answer:"""
+    prompt = PromptTemplate.from_template(prompt_template)
+
+    llm_chain = LLMChain(llm=getLLM(), prompt=prompt, verbose=False)
+
+    response = llm_chain.invoke(timezone, return_only_outputs=False)
     # print(response)
 
     response = response['text']
@@ -249,6 +268,7 @@ def currentDateTime():
     return currentTime
 
 if __name__ == '__main__':
+    # print(getCustomerTimezone('America/Austin'))
     question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
     question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
