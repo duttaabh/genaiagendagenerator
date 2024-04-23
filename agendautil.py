@@ -139,13 +139,11 @@ def generateAgendaItems(input_text, index_name, timezone):
             
             {context} 
             
-            only, strictly adhereing to the start and end times and without trying to generate anything on your own.
+            only, considering additional activities based on """ + keywords + """ related to the {question} but is not part of {context} and strictly adhereing to the start and end times and without trying to generate anything on your own.
             
             An example session would look like "'awsSessionID': '<session ID>', 'sessionName': '<session name>', 'sessionAbstract': '<session description>', 'sessionDate': '<session date YYYY-MM-DD>', 'sessionStartTime': '<session start time>', 'sessionEndTime': '<session end time>', 'sessionDuration': <session duration>"
             
             Include Lunch in the agenda if mentioned in the {question}.
-            
-            Include additional activities based on """ + keywords + """ related to the {question} but is not part of {context}.
             
             Please do not generate imaginary any sessions.
             
@@ -181,7 +179,7 @@ def overlapCheckJson(input_text, timezone):
                          
                          Remove any imaginary any sessions.
                          
-                         Remove any overlapping or conflicting activities in the {input_text}
+                         Remove any conflicting activities in the {input_text}
                          
                          Remove any conflicting or overlapping sessions based on their start or end time without manipulating the session start or end times in the {input_text}.
                          
@@ -271,10 +269,11 @@ if __name__ == '__main__':
     # print(getCustomerTimezone('America/Austin'))
     question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
-    question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
+    # question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
+    # question = 'i like AI and long lunches. make me a session, please!'
     # rephrasedquestion = rephraseQuestions(question)
     # print(rephrasedquestion)
-    timezone = 'America/Austin'
+    timezone = 'America/New_York'
     rag_response = generateAgendaItems(question, 'ny_summit_session_metadata', timezone)
     print('********************************************************************')
     print(formatJsonMessage(validateJsonResponse(overlapCheckJson(rag_response, timezone))))
