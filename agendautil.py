@@ -85,8 +85,10 @@ def uploadSummitDataToOSS(jsonFilePath, index_name): #creates and returns an in-
 # Function to set up the Anthropic Calude 3 Haiku LLM for RAG
 def getLLM():
     model_kwargs_claude = {
-        "temperature": 0.0,
-        "top_k": 250
+        "max_tokens": 4098,
+        "temperature": 1,
+        "top_k": 500,
+        "top_p": 0.999
     }
     llm = BedrockChat(model_id="anthropic.claude-3-haiku-20240307-v1:0",
                   model_kwargs=model_kwargs_claude)
@@ -139,7 +141,7 @@ def generateAgendaItems(input_text, index_name, timezone):
             
             {context} 
             
-            only, considering additional activities based on """ + keywords + """ related to the {question} but is not part of {context} and strictly adhereing to the start and end times and without trying to generate anything on your own.
+            only, considering additional activities based on """ + keywords + """ related to the {question} but is not part of {context}, adding Lunch in the agenda if mentioned in the {question} and strictly adhereing to the start and end times and without trying to generate anything on your own.
             
             An example session in a agenda would look like "'awsSessionID': '<session ID>', 'sessionName': '<session name>', 'sessionAbstract': '<session description>', 'sessionDate': '<session date YYYY-MM-DD>', 'sessionStartTime': '<session start time>', 'sessionEndTime': '<session end time>', 'sessionDuration': <session duration>"
             
