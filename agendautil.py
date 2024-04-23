@@ -133,11 +133,26 @@ def generateAgendaItems(input_text, index_name, timezone):
     # print(keywords)
     # Prompt Massaging
     prompt_template = """
-            Please generate an agenda in jsonArray format based on the \"{question}\" and {context} only, strictly adhereing to the start and end times and without trying to generate anything on your own.
+            Please generate an agenda in jsonArray format based on the 
+            
+            \"{question}\" and 
+            
+            {context} 
+            
+            only, strictly adhereing to the start and end times and without trying to generate anything on your own.
+            
+            An example session would look like "'awsSessionID': '<session ID>', 'sessionName': '<session name>', 'sessionAbstract': '<session description>', 'sessionDate': '<session date YYYY-MM-DD>', 'sessionStartTime': '<session start time>', 'sessionEndTime': '<session end time>', 'sessionDuration': <session duration>"
+            
             Include Lunch in the agenda if mentioned in the {question}.
-            Include additional activities based on """ + keywords + """ related to the {question}.
-            Please include the following attributes awsSessionID, sessionName, sessionDate, sessionStartTime, sessionEndTime and sessionDuration in mins for every session.
+            
+            Include additional activities based on """ + keywords + """ related to the {question} but is not part of {context}.
+            
+            Please do not generate imaginary any sessions.
+            
+            Please include the following attributes awsSessionID, sessionName, sessionAbstract, sessionDate, sessionStartTime, sessionEndTime and sessionDuration in mins for every session.
+            
             Convert session start and end times from America/New York to """ + timezone + """\
+            
             Failure Instructions:
             If you are unable to create an agenda, the task will be considered a failure. No need to explain the cause of failure.
 
@@ -163,11 +178,19 @@ def overlapCheckJson(input_text, timezone):
     # print("oss_message: ", input_text)
     prompt_template = """
                          Please do not create any agenda which does not match {input_text}
+                         
+                         Remove any imaginary any sessions.
+                         
                          Remove any overlapping or conflicting activities in the {input_text}
+                         
                          Remove any conflicting or overlapping sessions based on their start or end time without manipulating the session start or end times in the {input_text}.
+                         
                          Remove any session which is longer than three hours. If more than one sessions have overlapping or same start time, keep the most relevant one.
+                         
                          If more than one sessions have overlapping or same end time, keep the most relevant one.
+                         
                          Change the sessionDate to DD-MMM-YYYY format and session times to 'AM/PM Timezone' format
+                         
                          No need to provide any explanation.
 
                 Answer:"""
@@ -202,16 +225,18 @@ def validateJsonResponse(response):
     return data
 
 def formatJsonMessage(jsonmessage):
-    # print(jsonmessage)
+    final_agenda = ''
     if len(jsonmessage) > 0:
-        final_agenda = "\nPlease find below the recommended agenda based on your requirements\n=============================================================================="
         for session in jsonmessage:
             if 'awsSessionID' not in session:
                 sessionID = 'NA'
             else:
                 sessionID = session['awsSessionID']
             if 'sessionName' in session:
-                final_agenda = final_agenda + '\n' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n==============================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nSession Duration: {session['sessionDuration']}\n=============================================================================="
+                if len(final_agenda) > 0:
+                    final_agenda = final_agenda + '\n#chk# ' + f"{session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n==============================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nDescription: {'Not Available' if 'sessionAbstract' not in session or len(session['sessionAbstract'])==0 else session['sessionAbstract']} \nSession Duration: {session['sessionDuration']}\n=============================================================================="
+                else:
+                    final_agenda = f"#chk# {session['sessionDate']} {session['sessionStartTime']} - {session['sessionEndTime']}\n==============================================================================\nSession ID: {sessionID} \nTopic: {session['sessionName']} \nDescription: {'Not Available' if 'sessionAbstract' not in session or len(session['sessionAbstract'])==0 else session['sessionAbstract']} \nSession Duration: {session['sessionDuration']}\n=============================================================================="
     else:
         final_agenda = ''
     return final_agenda
@@ -226,7 +251,7 @@ def currentDateTime():
 if __name__ == '__main__':
     question = 'I want a 9am-3pm agenda focused in Machine Learning and Big Data. Leave me an hour for lunch.'
     # question = 'I want a 4 hour agenda including some hands on workshops. Compute and Open Source are most interesting to me.'
-    # question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
+    question = 'Build an agenda focused on ML, please leave me a 2 hour window so I can explore the conference booths.'
     # rephrasedquestion = rephraseQuestions(question)
     # print(rephrasedquestion)
     timezone = 'America/Austin'
