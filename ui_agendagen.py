@@ -49,17 +49,17 @@ if __name__ == '__main__':
 
     if query:
         try:
-            popSearchResult = False
+            popSearchResult = True
             if 'searchResult' in st.session_state:
                 jsonArray = st.session_state['searchResult']
                 arrayLen = len(jsonArray)
                 for i in range(1, arrayLen + 1):
                     if ("chk_" + str(i)) in st.session_state and st.session_state[("chk_" + str(i))] == False:
                         position = i
-                        popSearchResult = True
+                        popSearchResult = False
                         break;
                     else:
-                        popSearchResult = False
+                        popSearchResult = True
 
                 if popSearchResult:
                     st.session_state.pop('searchResult')
