@@ -52,31 +52,31 @@ if __name__ == '__main__':
             if 'searchResult' in st.session_state:
                 st.session_state.pop('searchResult')
 
-            position = 0
-
-            if 'searchResult' in st.session_state:
-                jsonArray = st.session_state['searchResult']
-                arrayLen = len(jsonArray)
-                for i in range(1, arrayLen+1):
-                    if ("chk_"+str(i)) in st.session_state and st.session_state[("chk_"+str(i))] == False:
-                        position = i
-                        break;
-                newJsonArray = removeItemFromAgenda(jsonArray, position)
-                # print(newJsonArray)
-                st.session_state['searchResult'] = newJsonArray
-            else:
-                jsonArray = generateAgenda(query)
-                arrayLen = len(jsonArray)
-                for i in range(1, arrayLen + 1):
-                    if ("chk_" + str(i)) in st.session_state and st.session_state[("chk_" + str(i))] == False:
-                        position = i
-                        break;
-                newJsonArray = removeItemFromAgenda(jsonArray, position)
-                # print(newJsonArray)
-                st.session_state['searchResult'] = newJsonArray
-
             with st.spinner("Generating..."):
                     # print(st.session_state['searchResult'])
+                    position = 0
+
+                    if 'searchResult' in st.session_state:
+                        jsonArray = st.session_state['searchResult']
+                        arrayLen = len(jsonArray)
+                        for i in range(1, arrayLen + 1):
+                            if ("chk_" + str(i)) in st.session_state and st.session_state[("chk_" + str(i))] == False:
+                                position = i
+                                break;
+                        newJsonArray = removeItemFromAgenda(jsonArray, position)
+                        # print(newJsonArray)
+                        st.session_state['searchResult'] = newJsonArray
+                    else:
+                        jsonArray = generateAgenda(query)
+                        arrayLen = len(jsonArray)
+                        for i in range(1, arrayLen + 1):
+                            if ("chk_" + str(i)) in st.session_state and st.session_state[("chk_" + str(i))] == False:
+                                position = i
+                                break;
+                        newJsonArray = removeItemFromAgenda(jsonArray, position)
+                        # print(newJsonArray)
+                        st.session_state['searchResult'] = newJsonArray
+                        
                     results = tsd.formatJsonMessage(jsonArray)
                     unchecked = False
                     st.success('Useful information: Please uncheck the boxes below to remove any session from the agenda.')
