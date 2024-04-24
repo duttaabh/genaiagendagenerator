@@ -49,8 +49,20 @@ if __name__ == '__main__':
 
     if query:
         try:
+            popSearchResult = False
             if 'searchResult' in st.session_state:
-                st.session_state.pop('searchResult')
+                jsonArray = st.session_state['searchResult']
+                arrayLen = len(jsonArray)
+                for i in range(1, arrayLen + 1):
+                    if ("chk_" + str(i)) in st.session_state and st.session_state[("chk_" + str(i))] == False:
+                        position = i
+                        popSearchResult = True
+                        break;
+                    else:
+                        popSearchResult = False
+
+                if popSearchResult:
+                    st.session_state.pop('searchResult')
 
             with st.spinner("Generating..."):
                     # print(st.session_state['searchResult'])
@@ -76,7 +88,7 @@ if __name__ == '__main__':
                         newJsonArray = removeItemFromAgenda(jsonArray, position)
                         # print(newJsonArray)
                         st.session_state['searchResult'] = newJsonArray
-                        
+
                     results = tsd.formatJsonMessage(jsonArray)
                     unchecked = False
                     st.success('Useful information: Please uncheck the boxes below to remove any session from the agenda.')
