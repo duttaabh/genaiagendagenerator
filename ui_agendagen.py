@@ -48,61 +48,62 @@ if __name__ == '__main__':
     query = st.text_input("Please tell us your session requirements")
 
     if query:
-        if 'question' not in st.session_state:
-            st.session_state['question'] = query
-        else:
-            if st.session_state['question'] != query:
-                st.session_state['question'] = query
-                if 'searchResult' in st.session_state:
-                    st.session_state.pop('searchResult')
-            else:
-                position = 0
-                if 'searchResult' in st.session_state:
-                    jsonArray = st.session_state['searchResult']
-                    arrayLen = len(jsonArray)
-                    for i in range(1, arrayLen+1):
-                        if ("chk_"+str(i)) in st.session_state and st.session_state[("chk_"+str(i))] == False:
-                            position = i
-                            break;
-                    newJsonArray = removeItemFromAgenda(jsonArray, position)
-                    # print(newJsonArray)
-                    st.session_state['searchResult'] = newJsonArray
-        with st.spinner("Generating..."):
-            try:
-                if 'searchResult' not in st.session_state:
-                    jsonArray = generateAgenda(query)
-                    st.session_state['searchResult'] = jsonArray
-                else:
-                    jsonArray = st.session_state['searchResult']
+        try:
+            if 'searchResult' in st.session_state:
+                st.session_state.pop('searchResult')
 
-                # print(st.session_state['searchResult'])
-                results = tsd.formatJsonMessage(jsonArray)
-                unchecked = False
-                st.success('Useful information: Please uncheck the boxes below to remove any session from the agenda.')
-                st.success(
-                    'Please be cautious with your choice as you might not be able to add them back in the agenda.')
-                if len(results) > 0:
-                    current_time = tsd.currentDateTime()
-                    save_to_pdf(str(results).replace("#chk#", ''), current_time)
-                    with open('output_'+current_time+'.pdf', "rb") as pdf_file:
-                        pdf = pdf_file.read()
-                    os.remove('output_' + current_time + '.pdf')
-                    st.download_button('Save & Download the agenda',
-                                       data=pdf,
-                                       file_name='agenda_'+tsd.currentDateTime()+'.pdf'
-                                      )
-                    messages = str(results).split('\n')
-                    i = 0
-                    for message in messages:
-                        if len(message) > 0 and '#chk#' in message:
-                            i = i + 1
-                            st.checkbox(label=message.replace('#chk#', ''), key=('chk_'+str(i)), value=True)
-                        else:
-                            st.write(message)
-                else:
-                    st.error("Sorry, unable to generate the agenda based on your requirements. Please try again later.")
-            except Exception as e:
-                # print(e)
-                import traceback
-                traceback.print_exc()
-                st.error("Sorry, unable to generate the agenda due to some system errors. Please try again later.")
+            position = 0
+
+            if 'searchResult' in st.session_state:
+                jsonArray = st.session_state['searchResult']
+                arrayLen = len(jsonArray)
+                for i in range(1, arrayLen+1):
+                    if ("chk_"+str(i)) in st.session_state and st.session_state[("chk_"+str(i))] == False:
+                        position = i
+                        break;
+                newJsonArray = removeItemFromAgenda(jsonArray, position)
+                # print(newJsonArray)
+                st.session_state['searchResult'] = newJsonArray
+            else:
+                jsonArray = generateAgenda(query)
+                arrayLen = len(jsonArray)
+                for i in range(1, arrayLen + 1):
+                    if ("chk_" + str(i)) in st.session_state and st.session_state[("chk_" + str(i))] == False:
+                        position = i
+                        break;
+                newJsonArray = removeItemFromAgenda(jsonArray, position)
+                # print(newJsonArray)
+                st.session_state['searchResult'] = newJsonArray
+
+            with st.spinner("Generating..."):
+                    # print(st.session_state['searchResult'])
+                    results = tsd.formatJsonMessage(jsonArray)
+                    unchecked = False
+                    st.success('Useful information: Please uncheck the boxes below to remove any session from the agenda.')
+                    st.success(
+                        'Please be cautious with your choice as you might not be able to add them back in the agenda.')
+                    if len(results) > 0:
+                        current_time = tsd.currentDateTime()
+                        save_to_pdf(str(results).replace("#chk#", ''), current_time)
+                        with open('output_'+current_time+'.pdf', "rb") as pdf_file:
+                            pdf = pdf_file.read()
+                        os.remove('output_' + current_time + '.pdf')
+                        st.download_button('Save & Download the agenda',
+                                           data=pdf,
+                                           file_name='agenda_'+tsd.currentDateTime()+'.pdf'
+                                          )
+                        messages = str(results).split('\n')
+                        i = 0
+                        for message in messages:
+                            if len(message) > 0 and '#chk#' in message:
+                                i = i + 1
+                                st.checkbox(label=message.replace('#chk#', ''), key=('chk_'+str(i)), value=True)
+                            else:
+                                st.write(message)
+                    else:
+                        st.error("Sorry, unable to generate the agenda based on your requirements. Please try again later.")
+        except Exception as e:
+            # print(e)
+            import traceback
+            traceback.print_exc()
+            st.error("Sorry, unable to generate the agenda due to some system errors. Please try again later.")
