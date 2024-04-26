@@ -1,3 +1,5 @@
+import time
+
 import streamlit as st
 import os
 
@@ -78,7 +80,7 @@ if __name__ == '__main__':
                 question_keywords = tsd.findSocialActivities(query)
             else:
                 question_keywords = st.session_state['question_keywords']
-
+            start = time.time()
             with st.spinner("Generating..."):
                     # print(st.session_state['searchResult'])
                     position = 0
@@ -102,6 +104,8 @@ if __name__ == '__main__':
                     st.success('Useful information: Please uncheck the boxes below to remove any session from the agenda.')
                     st.success(
                         'Please be cautious with your choice as you might not be able to add them back in the agenda.')
+                    end = time.time()
+                    st.success(f'Time Elapsed: {str(int(end - start))} seconds.')
                     if len(results) > 0:
                         current_time = tsd.currentDateTime()
                         save_to_pdf(str(results).replace("#chk#", ''), current_time)
