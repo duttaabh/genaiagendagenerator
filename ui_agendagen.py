@@ -17,10 +17,17 @@ timezone = st_javascript("""await (async () => {
             return userTimezone
 })().then(returnValue => returnValue)""")
 
+if 'converted_timezone' not in st.session_state:
+    converted_timezone = tsd.getCustomerTimezone(timezone)
+    st.session_state['converted_timezone'] = converted_timezone
+else:
+    converted_timezone = st.session_state['converted_timezone']
 # Function to generate the agenda from the UI
-def generateAgenda(query):
+def generateAgenda(query, question_keywords):
     # Calling the RAG Method
-    return tsd.validateJsonResponse(tsd.overlapCheckJson(tsd.generateAgendaItems(query, ny_summit_metadata, timezone), timezone))
+    # return tsd.validateJsonResponse(tsd.overlapCheckJson(tsd.generateAgendaItems(query, ny_summit_metadata, timezone), timezone))
+    return tsd.validateJsonResponse(
+        tsd.generateAgendaItems(query, ny_summit_metadata, timezone, converted_timezone, question_keywords))
 
 def removeItemFromAgenda(jsonArray, key):
     newJsonArray = []
@@ -47,6 +54,9 @@ if __name__ == '__main__':
 
     query = st.text_input("Please tell us your session requirements")
 
+    if 'question_keywords' in st.session_state:
+        st.session_state.pop('question_keywords')
+
     if query:
         try:
             popSearchResult = True
@@ -64,6 +74,11 @@ if __name__ == '__main__':
                 if popSearchResult:
                     st.session_state.pop('searchResult')
 
+            if 'question_keywords' not in st.session_state:
+                question_keywords = tsd.findSocialActivities(query)
+            else:
+                question_keywords = st.session_state['question_keywords']
+
             with st.spinner("Generating..."):
                     # print(st.session_state['searchResult'])
                     position = 0
@@ -78,7 +93,7 @@ if __name__ == '__main__':
                         jsonArray = removeItemFromAgenda(jsonArray, position)
                         st.session_state['searchResult'] = jsonArray
                     else:
-                        jsonArray = generateAgenda(query)
+                        jsonArray = generateAgenda(query, question_keywords)
 
                     st.session_state['searchResult'] = jsonArray
 
