@@ -130,7 +130,7 @@ def generateAgendaItems(input_text, index_name, timezone, converted_timezone, qu
             verify_certs=True,
             engine="faiss",
             connection_class=RequestsHttpConnection
-        ).as_retriever(search_kwargs={'k': random.randint(5, 8), 'lambda_mult':0, 'fetch_k': 20})
+        ).as_retriever(search_kwargs={'k': 'lambda_mult':0})
 
     # keywords = findSocialActivities(input_text)
     # print(keywords)
