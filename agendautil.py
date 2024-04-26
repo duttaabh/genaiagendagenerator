@@ -119,7 +119,7 @@ def findSocialActivities(input_text):
     return response
 
 # Fucntion to generate the RAW agenda using LLM
-def generateAgendaItems(input_text, index_name, timezone):
+def generateAgendaItems(input_text, index_name, timezone, converted_timezone, question_keywords):
     retriever = OpenSearchVectorSearch(
             opensearch_url=opensearch_endpoint,
             index_name=index_name,
@@ -132,7 +132,7 @@ def generateAgendaItems(input_text, index_name, timezone):
             connection_class=RequestsHttpConnection
         ).as_retriever(search_kwargs={'k': random.randint(5, 8), 'lambda_mult':0, 'fetch_k': 20})
 
-    keywords = findSocialActivities(input_text)
+    # keywords = findSocialActivities(input_text)
     # print(keywords)
     # Prompt Massaging
     prompt_template = """
@@ -142,7 +142,7 @@ def generateAgendaItems(input_text, index_name, timezone):
             
             {context} 
             
-            only, considering additional activities based on """ + keywords + """ related to the {question} but is not part of {context}, adding Lunch in the agenda if mentioned in the {question} and strictly adhereing to the start and end times and without trying to generate anything on your own.
+            only, considering additional activities based on """ + question_keywords + """ related to the {question} but is not part of {context}, adding Lunch in the agenda if mentioned in the {question} and strictly adhereing to the start and end times and without trying to generate anything on your own.
             
             An example session in the agenda would look like "'awsSessionID': '<session ID>', 'sessionName': '<session name>', 'sessionAbstract': '<session description>', 'sessionDate': '<session date YYYY-MM-DD>', 'sessionStartTime': '<session start time>', 'sessionEndTime': '<session end time>', 'sessionDuration': <session duration>"
             
@@ -153,6 +153,10 @@ def generateAgendaItems(input_text, index_name, timezone):
             Please include the following attributes awsSessionID, sessionName, sessionAbstract, sessionDate, sessionStartTime, sessionEndTime and sessionDuration in mins for every session.
             
             Convert session start and end times from America/New York to """ + timezone + """\
+            
+            Generate the final agenda after removing any conflicting and overlapping sessions from the agenda in {context} without creating any imaginary sessions.
+            
+            Change the sessionDate to DD-MMM-YYYY format and session times to 'AM/PM ' """ + converted_timezone + """ format.
             
             Failure Instructions:
             If you are unable to create an agenda, the task will be considered a failure. No need to explain the cause of failure.
@@ -170,7 +174,7 @@ def generateAgendaItems(input_text, index_name, timezone):
 
     rag_response = qa.invoke(input_text, return_only_outputs=False)
     # print(rag_response['result'])
-    agenda_response = sorted(validateJsonResponse(rag_response['result']), key=lambda x: datetime.datetime.strptime(x['sessionStartTime'], '%Y-%m-%d %H:%M:%S'))
+    agenda_response = sorted(validateJsonResponse(rag_response['result']), key=lambda x: datetime.datetime.strptime((x['sessionDate'] + ' ' + x['sessionStartTime']), '%d-%b-%Y %I:%M %p ' + converted_timezone))
 
     return json.dumps(agenda_response)
 
@@ -267,9 +271,11 @@ if __name__ == '__main__':
     # rephrasedquestion = rephraseQuestions(question)
     # print(rephrasedquestion)
     timezone = 'America/New_York'
-    rag_response = generateAgendaItems(question, 'ny_summit_session_metadata', timezone)
+    converted_timezone = getCustomerTimezone(timezone)
+    question_keywords = findSocialActivities(question)
+    rag_response = generateAgendaItems(question, 'ny_summit_session_metadata', timezone, converted_timezone, question_keywords)
     print('********************************************************************')
-    print(formatJsonMessage(validateJsonResponse(overlapCheckJson(rag_response, timezone))))
+    print(formatJsonMessage(validateJsonResponse(rag_response)))
     print('********************************************************************')
     # print(overlapCheckJson(rag_response, question, 'America/Austin'))
     # print('********************************************************************')
